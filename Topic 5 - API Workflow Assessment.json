@@ -1,0 +1,224 @@
+{
+  "name": "Topic 5 - API Workflow Assessment",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7e323a47-5be8-4907-ad50-78cf538512a2",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "requestTimestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "requestId",
+              "value": "=req-{{ $execution.id }}-{{ $workflow.id }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "targetUserId",
+              "value": "1",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a4a2c170-7ead-4fe4-87e1-47c53ea00f05",
+      "name": "Prepare Request Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        112,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://jsonplaceholder.typicode.com/users/{{ $json.targetUserId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Request-Id",
+              "value": "={{ $json.requestId }}"
+            },
+            {
+              "name": "X-Request-Timestamp",
+              "value": "={{ $json.requestTimestamp }}"
+            },
+            {
+              "name": "X-Execution-Id",
+              "value": "={{ $execution.id }}"
+            },
+            {
+              "name": "X-Workflow-Name",
+              "value": "={{ $workflow.name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "383cb8be-e15a-4125-bbd2-dbe026208b37",
+      "name": "Get User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        528,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://jsonplaceholder.typicode.com/posts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "userId",
+              "value": "={{ $('Prepare Request Context').item.json.targetUserId }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Request-Id",
+              "value": "={{ $('Prepare Request Context').item.json.requestId }}"
+            },
+            {
+              "name": "X-Chained-Timestamp",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "name": "X-Execution-Mode",
+              "value": "={{ $execution.mode }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc3a405a-aabe-4c58-8472-3c579f14478d",
+      "name": "Get User Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        816,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const posts = $input.all().map(i => i.json);\nconst user = $('Get User').first().json;\nconst ctx = $('Prepare Request Context').first().json;\n\nconst result = {\n  requestId: ctx.requestId,\n  requestTimestamp: ctx.requestTimestamp,\n  completedAt: new Date().toISOString(),\n  executionId: $execution.id,\n  executionMode: $execution.mode,\n  workflowId: $workflow.id,\n  workflowName: $workflow.name,\n  user: { id: user.id, name: user.name, email: user.email },\n  postCount: posts.length,\n  postTitles: posts.map(p => p.title),\n};\n\nconsole.log('[EXEC ' + $execution.id + '] ' + result.requestId + ' user=' + result.user.name + ' posts=' + result.postCount + ' at ' + result.completedAt);\n\nreturn [{ json: result }];"
+      },
+      "id": "070871f1-79a5-4cc2-bae3-d104f38d10ef",
+      "name": "Build Result & Execution Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        64
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Prepare Request Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Request Context": {
+      "main": [
+        [
+          {
+            "node": "Get User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User": {
+      "main": [
+        [
+          {
+            "node": "Get User Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Posts": {
+      "main": [
+        [
+          {
+            "node": "Build Result & Execution Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "db978ce5-ef35-4ad5-b13e-bbfa5d41f3f4",
+  "meta": {
+    "instanceId": "201381d913fa9e78389f7093cb99cedc70c766251a500f897db19feccfda3bd0"
+  },
+  "nodeGroups": [
+    {
+      "id": "24079794-8693-4237-85dc-2c20c71dedae",
+      "name": "Request Context",
+      "nodeIds": [
+        "a4a2c170-7ead-4fe4-87e1-47c53ea00f05"
+      ],
+      "description": "Generates the ISO-8601 timestamp, request id and target from execution context."
+    },
+    {
+      "id": "ddf85bee-82c1-41c4-aa2a-1e1d642612fc",
+      "name": "API Calls",
+      "nodeIds": [
+        "383cb8be-e15a-4125-bbd2-dbe026208b37",
+        "cc3a405a-aabe-4c58-8472-3c579f14478d"
+      ],
+      "description": "Sequential HTTP requests with dynamic headers and ancestor-node references."
+    },
+    {
+      "id": "a5115f2f-0218-4d63-a882-09e23d623c76",
+      "name": "Result & Logs",
+      "nodeIds": [
+        "070871f1-79a5-4cc2-bae3-d104f38d10ef"
+      ],
+      "description": "Merges parent + ancestor data and writes a structured execution log line."
+    }
+  ],
+  "id": "PUcISNuyf1esa2zl",
+  "tags": []
+}
